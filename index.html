@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ask My Docs — AI Research Assistant</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #F7F8FA;
+    color: #1a1a2e;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 36px; }
+  .header h1 { font-size: 32px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+  .header p { font-size: 16px; color: #6b7280; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 24px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .tab {
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+  .tab:hover { color: #4F46E5; }
+  .tab.active { color: #4F46E5; border-bottom-color: #4F46E5; }
+
+  /* Upload area */
+  .upload-area {
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+  }
+  .upload-area:hover, .upload-area.dragover {
+    border-color: #4F46E5;
+    background: #f5f3ff;
+  }
+  .upload-area svg { margin-bottom: 12px; color: #9ca3af; }
+  .upload-area .upload-label { font-size: 16px; font-weight: 500; color: #374151; margin-bottom: 4px; }
+  .upload-area .upload-helper { font-size: 13px; color: #9ca3af; }
+  .upload-area input[type="file"] { display: none; }
+
+  /* Paste area */
+  .paste-area textarea {
+    width: 100%;
+    min-height: 180px;
+    padding: 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    background: white;
+    transition: border-color 0.2s;
+  }
+  .paste-area textarea:focus { outline: none; border-color: #4F46E5; }
+  .paste-area .paste-helper { font-size: 13px; color: #9ca3af; margin-top: 8px; }
+  .paste-area .index-btn {
+    margin-top: 12px;
+    padding: 10px 24px;
+    background: #4F46E5;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .paste-area .index-btn:hover { background: #4338CA; }
+  .paste-area .index-btn:disabled { background: #a5b4fc; cursor: not-allowed; }
+
+  /* Status */
+  .status {
+    margin-top: 20px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    display: none;
+  }
+  .status.ready { display: block; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+  .status.error { display: block; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  .status.loading { display: block; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+
+  /* Chat area */
+  .chat-container { display: none; margin-top: 28px; }
+  .chat-container.visible { display: block; }
+
+  .chat-messages {
+    max-height: 500px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+    padding-right: 4px;
+  }
+
+  .message { margin-bottom: 20px; }
+  .message-q {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+  }
+  .message-q .bubble {
+    background: #eef2ff;
+    color: #312e81;
+    padding: 10px 16px;
+    border-radius: 14px 14px 4px 14px;
+    max-width: 80%;
+    font-size: 14px;
+  }
+  .message-a {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .message-a .answer-text {
+    font-size: 14px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+  }
+  .message-a .answer-text p { margin-bottom: 8px; }
+
+  /* Confidence badge */
+  .confidence-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+  }
+  .confidence-badge.High { background: #dcfce7; color: #166534; }
+  .confidence-badge.Medium { background: #fef9c3; color: #854d0e; }
+  .confidence-badge.Low { background: #fee2e2; color: #991b1b; }
+
+  /* Citations */
+  .citations-toggle {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #4F46E5;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: inherit;
+    padding: 0;
+  }
+  .citations-toggle:hover { text-decoration: underline; }
+  .citations-list {
+    display: none;
+    margin-top: 10px;
+    border-top: 1px solid #f3f4f6;
+    padding-top: 10px;
+  }
+  .citations-list.open { display: block; }
+  .citation-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+  .citation-card .citation-header {
+    font-weight: 600;
+    color: #4F46E5;
+    margin-bottom: 4px;
+  }
+  .citation-card .citation-preview {
+    color: #6b7280;
+    font-style: italic;
+  }
+
+  /* Question input */
+  .question-bar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .question-bar input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  .question-bar input:focus { outline: none; border-color: #4F46E5; }
+  .question-bar button {
+    padding: 12px 24px;
+    background: #4F46E5;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .question-bar button:hover { background: #4338CA; }
+  .question-bar button:disabled { background: #a5b4fc; cursor: not-allowed; }
+
+  .questions-remaining {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 6px;
+    text-align: right;
+  }
+
+  /* Suggested questions */
+  .suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .suggestion-chip {
+    padding: 6px 14px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    font-size: 12px;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .suggestion-chip:hover { border-color: #4F46E5; color: #4F46E5; background: #f5f3ff; }
+
+  /* Privacy */
+  .privacy-notice {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+  /* Clear chat */
+  .clear-btn {
+    float: right;
+    font-size: 12px;
+    color: #9ca3af;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .clear-btn:hover { color: #6b7280; }
+
+  .hidden { display: none; }
+
+  /* Loading dot animation */
+  .loading-dots::after {
+    content: '';
+    animation: dots 1.5s steps(4, end) infinite;
+  }
+  @keyframes dots {
+    0% { content: ''; }
+    25% { content: '.'; }
+    50% { content: '..'; }
+    75% { content: '...'; }
+    100% { content: ''; }
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .container { padding: 24px 16px; }
+    .header h1 { font-size: 24px; }
+    .upload-area { padding: 32px 16px; }
+    .message-q .bubble { max-width: 90%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1>Ask My Docs</h1>
+    <p>Your AI research assistant — upload a document, ask anything</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="upload">Upload Document</button>
+    <button class="tab" data-tab="paste">Paste Text</button>
+  </div>
+
+  <!-- Upload Tab -->
+  <div id="tab-upload" class="tab-content">
+    <div class="upload-area" id="dropZone">
+      <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
+      </svg>
+      <div class="upload-label">Click to upload or drag a PDF / DOCX here</div>
+      <div class="upload-helper">PRDs, strategy docs, research reports, earnings calls — up to 10MB</div>
+      <input type="file" id="fileInput" accept=".pdf,.docx">
+    </div>
+  </div>
+
+  <!-- Paste Tab -->
+  <div id="tab-paste" class="tab-content hidden">
+    <div class="paste-area">
+      <textarea id="pasteInput" placeholder="Paste the contents of a PRD, strategy doc, meeting notes, or any text you want to explore..."></textarea>
+      <div class="paste-helper">Paste at least a few paragraphs for meaningful results.</div>
+      <button class="index-btn" id="indexBtn" onclick="indexText()">Index Document</button>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status" id="status"></div>
+
+  <!-- Chat area -->
+  <div class="chat-container" id="chatContainer">
+    <button class="clear-btn" onclick="clearChat()">Clear conversation</button>
+    <div class="chat-messages" id="chatMessages"></div>
+
+    <div class="question-bar">
+      <input type="text" id="questionInput" placeholder="Ask a question about your document..." onkeydown="if(event.key==='Enter')askQuestion()">
+      <button id="askBtn" onclick="askQuestion()">Ask</button>
+    </div>
+    <div class="questions-remaining" id="questionsRemaining"></div>
+
+    <div class="suggestions" id="suggestions">
+      <span class="suggestion-chip" onclick="useSuggestion(this)">Summarize in 3 bullet points</span>
+      <span class="suggestion-chip" onclick="useSuggestion(this)">What are the key risks?</span>
+      <span class="suggestion-chip" onclick="useSuggestion(this)">What decisions are proposed?</span>
+      <span class="suggestion-chip" onclick="useSuggestion(this)">What data supports the argument?</span>
+    </div>
+  </div>
+
+  <!-- Privacy -->
+  <div class="privacy-notice">🔒 Your document is processed in memory and not stored. All data is cleared when your session ends.</div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+let sessionId = null;
+let questionsAsked = 0;
+const MAX_QUESTIONS = 10;
+
+// ── Tabs ───────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
+  });
+});
+
+// ── Drag & Drop ────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) {
+    fileInput.files = e.dataTransfer.files;
+    uploadFile(e.dataTransfer.files[0]);
+  }
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) uploadFile(fileInput.files[0]);
+});
+
+// ── Upload ─────────────────────────────────────────────────────
+async function uploadFile(file) {
+  const name = file.name.toLowerCase();
+  if (!name.endsWith('.pdf') && !name.endsWith('.docx')) {
+    showStatus('Please upload a PDF or DOCX file.', 'error');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showStatus('File is too large. Maximum size is 10MB.', 'error');
+    return;
+  }
+
+  showStatus('Indexing document...', 'loading');
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Upload failed');
+
+    sessionId = data.session_id;
+    questionsAsked = 0;
+    const doc = data.document;
+    const pageInfo = doc.page_count ? ` (${doc.page_count} pages)` : '';
+    showStatus(`✓ Ready — ${doc.chunk_count} sections indexed from "${doc.filename}"${pageInfo}. Ask a question below.`, 'ready');
+    showChat();
+  } catch (err) {
+    showStatus(err.message, 'error');
+  }
+}
+
+// ── Index Text ─────────────────────────────────────────────────
+async function indexText() {
+  const text = document.getElementById('pasteInput').value.trim();
+  if (!text) {
+    showStatus('Please paste some text to index.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('indexBtn');
+  btn.disabled = true;
+  btn.textContent = 'Indexing...';
+  showStatus('Indexing document...', 'loading');
+
+  try {
+    const res = await fetch('/index-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, title: 'Pasted Document' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Indexing failed');
+
+    sessionId = data.session_id;
+    questionsAsked = 0;
+    showStatus(`✓ Ready — ${data.document.chunk_count} sections indexed. Ask a question below.`, 'ready');
+    showChat();
+  } catch (err) {
+    showStatus(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Index Document';
+  }
+}
+
+// ── Ask ────────────────────────────────────────────────────────
+async function askQuestion() {
+  const input = document.getElementById('questionInput');
+  const question = input.value.trim();
+  if (!question || !sessionId) return;
+
+  if (questionsAsked >= MAX_QUESTIONS) {
+    showStatus('Question limit reached for this session. Upload a new document to start a new session.', 'error');
+    return;
+  }
+
+  // Show question bubble
+  addQuestionBubble(question);
+  input.value = '';
+
+  // Show loading
+  const loadingId = addLoadingBubble();
+
+  document.getElementById('askBtn').disabled = true;
+
+  try {
+    const res = await fetch('/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, question })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Failed to get answer');
+
+    removeLoadingBubble(loadingId);
+    addAnswerBubble(data);
+    questionsAsked++;
+    updateQuestionsRemaining();
+
+    // Keep suggestions visible for continued use
+  } catch (err) {
+    removeLoadingBubble(loadingId);
+    addErrorBubble(err.message);
+  } finally {
+    document.getElementById('askBtn').disabled = false;
+    input.focus();
+  }
+}
+
+// ── Chat rendering ─────────────────────────────────────────────
+function addQuestionBubble(text) {
+  const div = document.createElement('div');
+  div.className = 'message';
+  div.innerHTML = `<div class="message-q"><div class="bubble">${escapeHtml(text)}</div></div>`;
+  document.getElementById('chatMessages').appendChild(div);
+  scrollChat();
+}
+
+function addLoadingBubble() {
+  const id = 'loading-' + Date.now();
+  const div = document.createElement('div');
+  div.className = 'message';
+  div.id = id;
+  div.innerHTML = `<div class="message-a"><span class="loading-dots" style="color:#6b7280">Searching document</span></div>`;
+  document.getElementById('chatMessages').appendChild(div);
+  scrollChat();
+  return id;
+}
+
+function removeLoadingBubble(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function addAnswerBubble(data) {
+  const div = document.createElement('div');
+  div.className = 'message';
+
+  const confidenceLabels = {
+    High: 'Strong match found in document',
+    Medium: 'Partial match — answer may be incomplete',
+    Low: 'Weak match — the document may not cover this topic'
+  };
+
+  const citationId = 'cit-' + Date.now();
+
+  let citationsHtml = '';
+  if (data.citations && data.citations.length > 0) {
+    citationsHtml = `
+      <button class="citations-toggle" onclick="toggleCitations('${citationId}')">▸ Sources (${data.citations.length} sections)</button>
+      <div class="citations-list" id="${citationId}">
+        ${data.citations.map(c => `
+          <div class="citation-card">
+            <div class="citation-header">Section ${c.chunk_id}${c.page_number ? ' · Page ' + c.page_number : ''}</div>
+            <div class="citation-preview">${escapeHtml(c.text_preview)}...</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  div.innerHTML = `
+    <div class="message-a">
+      <span class="confidence-badge ${data.confidence}">${confidenceLabels[data.confidence] || data.confidence}</span>
+      <div class="answer-text">${formatAnswer(data.answer)}</div>
+      ${citationsHtml}
+    </div>
+  `;
+
+  document.getElementById('chatMessages').appendChild(div);
+  scrollChat();
+}
+
+function addErrorBubble(msg) {
+  const div = document.createElement('div');
+  div.className = 'message';
+  div.innerHTML = `<div class="message-a" style="border-color:#fecaca"><div class="answer-text" style="color:#991b1b">${escapeHtml(msg)}</div></div>`;
+  document.getElementById('chatMessages').appendChild(div);
+  scrollChat();
+}
+
+function toggleCitations(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.toggle('open');
+    const btn = el.previousElementSibling;
+    if (btn) btn.textContent = el.classList.contains('open')
+      ? `▾ Sources (${el.children.length} sections)`
+      : `▸ Sources (${el.children.length} sections)`;
+  }
+}
+
+function formatAnswer(text) {
+  // Basic markdown-like formatting
+  return text
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[Section (\d+)\]/g, '<span style="color:#4F46E5;font-weight:500">[Section $1]</span>')
+    .replace(/^/, '<p>') + '</p>';
+}
+
+// ── Helpers ────────────────────────────────────────────────────
+function showStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + type;
+}
+
+function showChat() {
+  document.getElementById('chatContainer').classList.add('visible');
+  document.getElementById('chatMessages').innerHTML = '';
+  updateQuestionsRemaining();
+  document.getElementById('suggestions').style.display = 'flex';
+  document.getElementById('questionInput').focus();
+}
+
+function clearChat() {
+  document.getElementById('chatMessages').innerHTML = '';
+  document.getElementById('suggestions').style.display = 'flex';
+}
+
+function updateQuestionsRemaining() {
+  const remaining = MAX_QUESTIONS - questionsAsked;
+  document.getElementById('questionsRemaining').textContent = `${remaining} question${remaining !== 1 ? 's' : ''} remaining`;
+}
+
+function useSuggestion(el) {
+  document.getElementById('questionInput').value = el.textContent;
+  document.getElementById('questionInput').focus();
+}
+
+function scrollChat() {
+  const el = document.getElementById('chatMessages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
