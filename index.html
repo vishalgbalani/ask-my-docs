@@ -539,8 +539,7 @@ function addAnswerBubble(data) {
 
   const confidenceLabels = {
     High: 'Strong match found in document',
-    Medium: 'Partial match — answer may be incomplete',
-    Low: 'Weak match — the document may not cover this topic'
+    Medium: 'Partial match — answer may be incomplete'
   };
 
   const citationId = 'cit-' + Date.now();
@@ -562,7 +561,7 @@ function addAnswerBubble(data) {
 
   div.innerHTML = `
     <div class="message-a">
-      <span class="confidence-badge ${data.confidence}">${confidenceLabels[data.confidence] || data.confidence}</span>
+      ${confidenceLabels[data.confidence] ? `<span class="confidence-badge ${data.confidence}">${confidenceLabels[data.confidence]}</span>` : ''}
       <div class="answer-text">${formatAnswer(data.answer)}</div>
       ${citationsHtml}
     </div>
